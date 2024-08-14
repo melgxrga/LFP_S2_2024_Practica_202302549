@@ -10,6 +10,48 @@ module inventario_mod
     end type inventario_t
     type(inventario_t), allocatable :: inventarios(:)
 contains
+subroutine procesar_eliminar_equipo(linea)
+    character(len=*), intent(in) :: linea
+    character(len=1024) :: nombreEquipo, cantidadStr, ubicacion
+    integer :: cantidad, pos1, pos2, i
+    logical :: encontrado
+
+    ! Procesar la línea para extraer los valores
+    pos1 = index(linea, ';')
+    if (pos1 > 0) then
+        nombreEquipo = trim(linea(1:pos1-1))
+        pos2 = index(linea(pos1+1:), ';') + pos1
+        if (pos2 > pos1) then
+            cantidadStr = trim(linea(pos1+1:pos2-1))
+            ubicacion = trim(linea(pos2+1:))
+            read(cantidadStr, *) cantidad
+            encontrado = .false.
+            do i = 1, num_inventarios
+                if (trim(inventarios(i)%nombre) == trim(nombreEquipo) .and. trim(inventarios(i)%ubicacion) == trim(ubicacion)) then
+                    encontrado = .true.
+                    if (inventarios(i)%cantidad >= cantidad) then
+                        inventarios(i)%cantidad = inventarios(i)%cantidad - cantidad
+                        print *, 'Stock eliminado - Nombre: ' // trim(nombreEquipo) // ', Cantidad: ', cantidad, ', Ubicacion: ' // trim(ubicacion)
+                        print *, 'Inventario actual de ' // trim(nombreEquipo) // ': ', inventarios(i)%cantidad
+                    else
+                        print *, '===================================================='
+                        print *, 'Error: Cantidad insuficiente en la ubicación especificada, tiene que ser una cantidad menor del inventario.'
+                    end if
+                    exit
+                end if
+            end do
+            if (.not. encontrado) then
+               
+                print *, 'Error: El equipo no existe en la ubicacion especificada.'
+            end if
+        else
+            print *, 'No se encontró el segundo delimitador ";" en la línea'
+        end if
+    else
+        print *, 'No se encontró el delimitador ";" en la línea'
+    end if
+end subroutine procesar_eliminar_equipo
+
     subroutine redimensionar_inventarios(n)
         integer, intent(in) :: n
         type(inventario_t), allocatable :: temp(:)
@@ -81,7 +123,7 @@ contains
                     print *, 'Comando no reconocido:', trim(comando)
             end select
         else
-            print *, 'Formato de línea no válido:', trim(linea)
+            print *, 'Formato de linea no valido:', trim(linea)
         end if
     end subroutine procesar_linea
 
@@ -117,9 +159,9 @@ contains
                     inventarios(num_inventarios)%precioUnitario = precioUnitario
                     inventarios(num_inventarios)%ubicacion = trim(ubicacion)
 
-                    print *, 'Equipo creado: ' // trim(nombreEquipo) // ', Cantidad: ', trim(adjustl(cantidadStr)), ', Precio Unitario: ', precioUnitario, ', Ubicacion: ' // trim(ubicacion)
+                    print *, 'Equipo creado: ' // trim(nombreEquipo) // ', Cantidad: ' // trim(adjustl(cantidadStr)) // ', Precio Unitario: ' // trim(adjustl(trim(precioUnitarioStr))) // ', Ubicacion: ' // trim(ubicacion)
                 else
-                    print *, 'No se encontró el tercer delimitador ";" en la línea'
+                    print *, 'No se encontro el tercer delimitador ";" en la línea'
                 end if
             else
                 print *, 'No se encontró el segundo delimitador ";" en la línea'
@@ -169,44 +211,30 @@ contains
                     exit
                 end if
             else
-                print *, 'Leyendo línea:', trim(linea)
                 call procesar_linea(trim(linea))
             end if
         end do
     
         close(20)
-        print *, '----------------------------------------------------'
-        print *, 'Archivo cerrado'
     end subroutine opcion1
     
     subroutine opcion2()
-        character(len=1024) :: linea
+        implicit none
         integer :: ios
         character(len=256) :: filename
+        character(len=1024) :: linea, comando
+    
         print *, '===================================================='
-        print *, 'Has seleccionado la Opcion 2'
+        print *, 'Ingrese la ruta del archivo .mov:'
+        read(*, '(A)') filename
+        print *, '===================================================='
     
-        do
-            print *, '===================================================='
-            print *, 'Por favor, ingrese la ruta del archivo de movimientos:'
-            read *, filename
-            print *, '===================================================='
-            print *, 'Intentando abrir el archivo:', trim(filename)
-            print *, '===================================================='
-            open(unit = 20, file = filename, status = 'old', action = 'read', iostat = ios)
-            if (ios /= 0) then
-                if (ios == 2) then
-                    print *, 'El archivo no existe. Intente de nuevo.'
-                else
-                    print *, 'Error al abrir el archivo, código de error:', ios
-                end if
-            else
-                print *, 'Archivo abierto exitosamente'
-                print *, '----------------------------------------------------'
-                exit
-            end if
-        end do
-    
+        ! Abrir el archivo especificado por el usuario
+        open(20, file=trim(filename), status='old', action='read', iostat=ios)
+        if (ios /= 0) then
+            print *, 'Error al abrir el archivo, codigo de error:', ios
+            return
+        end if
         do
             read(20, '(A)', iostat = ios) linea
             if (ios /= 0) then
@@ -215,17 +243,23 @@ contains
                     print *, 'Fin del archivo alcanzado'
                     exit
                 else
-                    print *, 'Error al leer la línea, código de error:', ios
+                    print *, 'Error al leer la linea, código de error:', ios
                     exit
                 end if
             else
-                call procesar_linea(trim(linea))
+                comando = trim(linea(1:index(linea, ' ') - 1))
+                select case (comando)
+                    case ('agregar_stock')
+                        call procesar_agregar_stock(trim(linea(index(linea, ' ') + 1:)))
+                    case ('eliminar_equipo')
+                        call procesar_eliminar_equipo(trim(linea(index(linea, ' ') + 1:)))
+                    case default
+                        print *, 'Comando no reconocido: ', comando
+                end select
             end if
         end do
     
         close(20)
-        print *, '----------------------------------------------------'
-        print *, 'Archivo cerrado'
     end subroutine opcion2
 
     subroutine opcion3()
@@ -246,8 +280,9 @@ program main
         print *, '2. Opcion 2'
         print *, '3. Opcion 3'
         print *, '4. Salir'
-        print *, 'Selecciona una opción: '
+        print *, 'Selecciona una opcion: '
         read *, opcion
+
         select case (opcion)
             case (1)
                call opcion1()
@@ -258,7 +293,7 @@ program main
             case (4)
                 exit
             case default
-                print *, 'Opción no válida. Inténtalo de nuevo.'
+                print *, 'Opcion no valida. Inténtalo de nuevo.'
         end select
     end do
 end program main
