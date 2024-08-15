@@ -10,6 +10,47 @@ module inventario_mod
     end type inventario_t
     type(inventario_t), allocatable :: inventarios(:)
 contains
+
+
+
+subroutine generar_informe_inventario(inventarios, num_equipos)
+    implicit none
+    type(inventario_t), intent(in) :: inventarios(:)
+    integer, intent(in) :: num_equipos
+    integer :: ios, i
+    character(len=256) :: filename
+    real :: valor_total
+
+    ! Nombre del archivo de salida
+    filename = 'informe_inventario.txt'
+
+    ! Abrir el archivo para escribir
+    open(30, file=trim(filename), status='replace', action='write', iostat=ios)
+    if (ios /= 0) then
+        print *, 'Error al abrir el archivo de informe, codigo de error:', ios
+        return
+    end if
+
+    ! Escribir el título y las líneas de separación
+    write(30, '(A)') '==============================='
+    write(30, '(A)') '      Informe de Inventario      '
+    write(30, '(A)') '==============================='
+    write(30, '(A)') ''
+
+    ! Escribir los encabezados de la tabla
+    write(30, '(A)') 'Equipo           Cantidad   Precio Unitario   Valor Total   Ubicacion'
+    write(30, '(A)') '---------------------------------------------------------------------'
+
+    ! Iterar sobre los equipos en el inventario
+    do i = 1, num_equipos
+        valor_total = inventarios(i)%cantidad * inventarios(i)%precioUnitario
+        write(30, '(A20, I10, 1X, A, F10.2, 1X, A, F10.2, A20)') trim(inventarios(i)%nombre), inventarios(i)%cantidad, 'Q', inventarios(i)%precioUnitario, 'Q', valor_total, trim(inventarios(i)%ubicacion)
+    end do
+
+    ! Cerrar el archivo
+    close(30)
+end subroutine generar_informe_inventario
+
 subroutine procesar_eliminar_equipo(linea)
     character(len=*), intent(in) :: linea
     character(len=1024) :: nombreEquipo, cantidadStr, ubicacion
@@ -262,10 +303,19 @@ end subroutine procesar_eliminar_equipo
         close(20)
     end subroutine opcion2
 
-    subroutine opcion3()
-        ! Aquí puedes agregar el código para la Opción 3
-        print *, 'Has seleccionado la Opcion 3'
+    subroutine opcion3(inventarios, num_equipos)
+        implicit none
+        type(inventario_t), intent(inout) :: inventarios(:)
+        integer, intent(in) :: num_equipos
+    
+        ! Llamar a la subrutina para generar el informe del inventario
+        call generar_informe_inventario(inventarios, num_equipos)
+    
+        print *, '===================================================='
+        print *, 'Informe del inventario generado exitosamente.'
+        print *, '===================================================='
     end subroutine opcion3
+
 end module inventario_mod
 
 program main
@@ -289,7 +339,7 @@ program main
             case (2)
                 call opcion2()
             case (3)
-                call opcion3()
+                call opcion3(inventarios, num_inventarios)
             case (4)
                 exit
             case default

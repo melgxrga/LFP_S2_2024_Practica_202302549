@@ -1,0 +1,8 @@
+===============================
+      Informe de Inventario      
+===============================
+
+Equipo           Cantidad   Precio Unitario   Valor Total   Ubicacion
+---------------------------------------------------------------------
+             Lapices       100 Q      2.50 Q    250.00             BodegaA
+        Computadoras        50 Q   3000.00 Q 150000.00             BodegaB
