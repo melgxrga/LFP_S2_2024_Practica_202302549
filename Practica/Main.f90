@@ -21,33 +21,27 @@ subroutine generar_informe_inventario(inventarios, num_equipos)
     character(len=256) :: filename
     real :: valor_total
 
-    ! Nombre del archivo de salida
     filename = 'informe_inventario.txt'
 
-    ! Abrir el archivo para escribir
     open(30, file=trim(filename), status='replace', action='write', iostat=ios)
     if (ios /= 0) then
         print *, 'Error al abrir el archivo de informe, codigo de error:', ios
         return
     end if
 
-    ! Escribir el título y las líneas de separación
     write(30, '(A)') '==============================='
     write(30, '(A)') '      Informe de Inventario      '
     write(30, '(A)') '==============================='
     write(30, '(A)') ''
-
-    ! Escribir los encabezados de la tabla
     write(30, '(A)') 'Equipo           Cantidad   Precio Unitario   Valor Total   Ubicacion'
     write(30, '(A)') '---------------------------------------------------------------------'
 
-    ! Iterar sobre los equipos en el inventario
+  
     do i = 1, num_equipos
         valor_total = inventarios(i)%cantidad * inventarios(i)%precioUnitario
         write(30, '(A20, I10, 1X, A, F10.2, 1X, A, F10.2, A20)') trim(inventarios(i)%nombre), inventarios(i)%cantidad, 'Q', inventarios(i)%precioUnitario, 'Q', valor_total, trim(inventarios(i)%ubicacion)
     end do
 
-    ! Cerrar el archivo
     close(30)
 end subroutine generar_informe_inventario
 
@@ -57,7 +51,6 @@ subroutine procesar_eliminar_equipo(linea)
     integer :: cantidad, pos1, pos2, i
     logical :: encontrado
 
-    ! Procesar la línea para extraer los valores
     pos1 = index(linea, ';')
     if (pos1 > 0) then
         nombreEquipo = trim(linea(1:pos1-1))
@@ -112,8 +105,7 @@ end subroutine procesar_eliminar_equipo
         character(len=1024) :: nombreEquipo, cantidadStr, ubicacion
         integer :: cantidad, pos1, pos2, i
         logical :: encontrado
-    
-        ! Procesar la línea para extraer los valores
+
         pos1 = index(linea, ';')
         if (pos1 > 0) then
             nombreEquipo = trim(linea(1:pos1-1))
@@ -326,9 +318,10 @@ program main
     do
         print *, '=====================PRACTICA 1====================='
         print *, '                 Sistema de inventario'
-        print *, '1. Opcion 1'
-        print *, '2. Opcion 2'
-        print *, '3. Opcion 3'
+        print *, '===================================================='
+        print *, '1. Cargar inventario incial'
+        print *, '2. Cargar instrucciones de movimientos'
+        print *, '3. Crear informe de inventario'
         print *, '4. Salir'
         print *, 'Selecciona una opcion: '
         read *, opcion
