@@ -1,0 +1,26 @@
+===============================
+      Informe de Inventario      
+===============================
+
+Equipo           Cantidad   Precio Unitario   Valor Total   Ubicacion
+---------------------------------------------------------------------
+             Lapices       100 Q      2.50 Q    250.00             BodegaA
+        Computadoras        50 Q   3000.00 Q 150000.00             BodegaB
+         Escritorios        75 Q    100.75 Q   7556.25             BodegaC
+              Sillas       150 Q     45.00 Q   6750.00             BodegaD
+          Impresoras        20 Q    200.00 Q   4000.00             BodegaE
+           Monitores        60 Q    250.00 Q  15000.00             BodegaF
+         Proyectores        15 Q    500.00 Q   7500.00             BodegaG
+             Tablets        40 Q    400.00 Q  16000.00             BodegaH
+           Telefonos        80 Q    150.00 Q  12000.00             BodegaI
+             Camaras        25 Q    750.00 Q  18750.00             BodegaJ
+        Computadoras        30 Q   3000.00 Q  90000.00             BodegaC
+             Lapices       200 Q      2.50 Q    500.00             BodegaB
+              Sillas       100 Q     45.00 Q   4500.00             BodegaE
+           Monitores        40 Q    250.00 Q  10000.00             BodegaA
+         Proyectores        10 Q    500.00 Q   5000.00             BodegaF
+             Tablets        25 Q    400.00 Q  10000.00             BodegaB
+         Escritorios        50 Q    100.75 Q   5037.50             BodegaD
+           Telefonos        60 Q    150.00 Q   9000.00             BodegaG
+             Camaras        10 Q    750.00 Q   7500.00             BodegaH
+          Impresoras        15 Q    200.00 Q   3000.00             BodegaC
