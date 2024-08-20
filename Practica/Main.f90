@@ -1,55 +1,86 @@
 module inventario_mod
     implicit none
+    integer, parameter :: max_inventarios = 100
+    integer, parameter :: max_movimientos = 100
     integer, parameter :: max_inventario = 1000
     integer :: num_inventarios = 0
+    integer :: num_movimientos = 0
+
     type :: inventario_t
         character(len=1024) :: nombre
         integer :: cantidad
         real :: precioUnitario
-        character(len=256) :: ubicacion
+        character(len=1024) :: ubicacion
     end type inventario_t
+
+    type :: movimiento_t
+        character(len=1024) :: nombre
+        integer :: cantidad
+        character(len=1024) :: ubicacion
+        character(len=1024) :: tipo
+    end type movimiento_t
+
     type(inventario_t), allocatable :: inventarios(:)
+    type(movimiento_t), allocatable :: movimientos(:)
+
+
 contains
 
-
-
-subroutine generar_informe_inventario(inventarios, num_equipos)
+subroutine generar_informe(inventarios, num_equipos, movimientos, num_movimientos)
     implicit none
-    type(inventario_t), intent(in) :: inventarios(:)
-    integer, intent(in) :: num_equipos
-    integer :: ios, i
-    character(len=256) :: filename
+    type(inventario_t), intent(inout) :: inventarios(:)
+    type(movimiento_t), intent(in) :: movimientos(:)
+    integer, intent(in) :: num_equipos, num_movimientos
+    integer :: ios, i, j
+    character(len=256) :: filename_inventario, filename_movimientos
     real :: valor_total
 
-    filename = 'informe_inventario.txt'
 
-    open(30, file=trim(filename), status='replace', action='write', iostat=ios)
+    filename_movimientos = 'informe_movimientos.txt'
+
+    ! Generar informe de inventario inicial
+    open(30, file=trim(filename_movimientos), status='replace', action='write', iostat=ios)
     if (ios /= 0) then
-        print *, 'Error al abrir el archivo de informe, codigo de error:', ios
+        print *, 'Error al abrir el archivo de informe de inventario, codigo de error:', ios
         return
     end if
 
     write(30, '(A)') '==============================='
-    write(30, '(A)') '      Informe de Inventario      '
+    write(30, '(A)') '      Informe de Movimientos      '
     write(30, '(A)') '==============================='
     write(30, '(A)') ''
     write(30, '(A)') 'Equipo           Cantidad   Precio Unitario   Valor Total   Ubicacion'
     write(30, '(A)') '---------------------------------------------------------------------'
 
-  
     do i = 1, num_equipos
         valor_total = inventarios(i)%cantidad * inventarios(i)%precioUnitario
         write(30, '(A20, I10, 1X, A, F10.2, 1X, A, F10.2, A20)') trim(inventarios(i)%nombre), inventarios(i)%cantidad, 'Q', inventarios(i)%precioUnitario, 'Q', valor_total, trim(inventarios(i)%ubicacion)
     end do
 
     close(30)
-end subroutine generar_informe_inventario
+
+    ! Aplicar movimientos al inventario
+    do i = 1, num_movimientos
+        do j = 1, num_equipos
+            if (trim(movimientos(i)%nombre) == trim(inventarios(j)%nombre) .and. trim(movimientos(i)%ubicacion) == trim(inventarios(j)%ubicacion)) then
+                if (trim(movimientos(i)%tipo) == 'Agregar') then
+                    inventarios(j)%cantidad = inventarios(j)%cantidad + movimientos(i)%cantidad
+                else if (trim(movimientos(i)%tipo) == 'Eliminar') then
+                    inventarios(j)%cantidad = inventarios(j)%cantidad - movimientos(i)%cantidad
+                end if
+                exit
+            end if
+        end do
+    end do
+end subroutine generar_informe
 
 subroutine procesar_eliminar_equipo(linea)
+    implicit none
     character(len=*), intent(in) :: linea
     character(len=1024) :: nombreEquipo, cantidadStr, ubicacion
     integer :: cantidad, pos1, pos2, i
-    logical :: encontrado
+    logical :: encontrado, ubicacion_existe
+    type(movimiento_t), allocatable :: temp_movimientos(:)
 
     pos1 = index(linea, ';')
     if (pos1 > 0) then
@@ -59,30 +90,74 @@ subroutine procesar_eliminar_equipo(linea)
             cantidadStr = trim(linea(pos1+1:pos2-1))
             ubicacion = trim(linea(pos2+1:))
             read(cantidadStr, *) cantidad
+
+            ubicacion_existe = .false.
+            do i = 1, num_inventarios
+                if (trim(inventarios(i)%ubicacion) == ubicacion) then
+                    ubicacion_existe = .true.
+                    exit
+                end if
+            end do
+
+            if (.not. ubicacion_existe) then
+                print *, '===================================================='
+                print *, 'Error: La ubicacion especificada no existe en el inventario.'
+                print *, 'Ubicación: ', trim(ubicacion)
+                print *, '===================================================='
+                return
+            end if
+
             encontrado = .false.
             do i = 1, num_inventarios
                 if (trim(inventarios(i)%nombre) == trim(nombreEquipo) .and. trim(inventarios(i)%ubicacion) == trim(ubicacion)) then
                     encontrado = .true.
                     if (inventarios(i)%cantidad >= cantidad) then
                         inventarios(i)%cantidad = inventarios(i)%cantidad - cantidad
-                        print *, 'Stock eliminado - Nombre: ' // trim(nombreEquipo) // ', Cantidad: ', cantidad, ', Ubicacion: ' // trim(ubicacion)
-                        print *, 'Inventario actual de ' // trim(nombreEquipo) // ': ', inventarios(i)%cantidad
+                        print *, 'Stock eliminado - Nombre: ', trim(nombreEquipo), ', Cantidad: ', cantidad, ', Ubicacion: ', trim(ubicacion)
+                        print *, 'Inventario actual de ', trim(nombreEquipo), ': ', inventarios(i)%cantidad
                     else
                         print *, '===================================================='
-                        print *, 'Error: Cantidad insuficiente en la ubicación especificada, tiene que ser una cantidad menor del inventario.'
+                        print *, 'Error: Cantidad insuficiente en la ubicacion especificada, tiene que ser una cantidad menor del inventario.'
+                        print *, 'Equipo: ', trim(nombreEquipo), ', Ubicacion: ', trim(ubicacion)
+                        print *, '===================================================='
                     end if
                     exit
                 end if
             end do
             if (.not. encontrado) then
-               
+                print *, '===================================================='
                 print *, 'Error: El equipo no existe en la ubicacion especificada.'
+                print *, 'Equipo: ', trim(nombreEquipo), ', Ubicacion: ', trim(ubicacion)
+                print *, '===================================================='
             end if
+
+            ! Registrar el movimiento
+            num_movimientos = num_movimientos + 1
+            if (.not. allocated(movimientos)) then
+                allocate(movimientos(num_movimientos))
+            else
+                allocate(temp_movimientos(num_movimientos))
+                temp_movimientos(1:num_movimientos-1) = movimientos
+                deallocate(movimientos)
+                allocate(movimientos(num_movimientos))
+                movimientos = temp_movimientos
+                deallocate(temp_movimientos)
+            end if
+            movimientos(num_movimientos)%nombre = nombreEquipo
+            movimientos(num_movimientos)%cantidad = cantidad
+            movimientos(num_movimientos)%ubicacion = ubicacion
+            movimientos(num_movimientos)%tipo = 'Eliminar'
         else
-            print *, 'No se encontró el segundo delimitador ";" en la línea'
+            print *, '===================================================='
+            print *, 'Error: No se encontro el segundo delimitador ";" en la línea.'
+            print *, 'Línea: ', trim(linea)
+            print *, '===================================================='
         end if
     else
-        print *, 'No se encontró el delimitador ";" en la línea'
+        print *, '===================================================='
+        print *, 'Error: No se encontro el delimitador ";" en la línea.'
+        print *, 'Línea: ', trim(linea)
+        print *, '===================================================='
     end if
 end subroutine procesar_eliminar_equipo
 
@@ -99,13 +174,14 @@ end subroutine procesar_eliminar_equipo
             allocate(inventarios(n))
         end if
     end subroutine redimensionar_inventarios
-
     subroutine procesar_agregar_stock(linea)
+        implicit none
         character(len=*), intent(in) :: linea
         character(len=1024) :: nombreEquipo, cantidadStr, ubicacion
         integer :: cantidad, pos1, pos2, i
-        logical :: encontrado
-
+        logical :: encontrado, ubicacion_existe
+        type(movimiento_t), allocatable :: temp_movimientos(:)
+    
         pos1 = index(linea, ';')
         if (pos1 > 0) then
             nombreEquipo = trim(linea(1:pos1-1))
@@ -114,28 +190,72 @@ end subroutine procesar_eliminar_equipo
                 cantidadStr = trim(linea(pos1+1:pos2-1))
                 ubicacion = trim(linea(pos2+1:))
                 read(cantidadStr, *) cantidad
+    
+                ubicacion_existe = .false.
+                do i = 1, num_inventarios
+                    if (trim(inventarios(i)%ubicacion) == ubicacion) then
+                        ubicacion_existe = .true.
+                        exit
+                    end if
+                end do
+    
+                if (.not. ubicacion_existe) then
+                    print *, '===================================================='
+                    print *, 'Error: La ubicacion especificada no existe en el inventario.'
+                    print *, 'Ubicación: ' // trim(ubicacion)
+                    print *, '===================================================='
+                    return
+                end if
+    
                 encontrado = .false.
                 do i = 1, num_inventarios
-                    if (trim(inventarios(i)%nombre) == trim(nombreEquipo)) then
+                    if (trim(inventarios(i)%nombre) == trim(nombreEquipo) .and. trim(inventarios(i)%ubicacion) == trim(ubicacion)) then
                         if (inventarios(i)%cantidad + cantidad <= max_inventario) then
                             inventarios(i)%cantidad = inventarios(i)%cantidad + cantidad
                             encontrado = .true.
                             print *, 'Stock agregado - Nombre: ' // trim(nombreEquipo) // ', Cantidad: ', cantidad, ', Ubicacion: ' // trim(ubicacion)
                             print *, 'Inventario actual de ' // trim(nombreEquipo) // ': ', inventarios(i)%cantidad
                         else
-                            print *, 'Error: No se puede agregar al inventario. Excede el máximo permitido.'
+                            print *, '===================================================='
+                            print *, 'Error: No se puede agregar al inventario. Excede el maximo permitido.'
+                            print *, '===================================================='
                         end if
                         exit
                     end if
                 end do
                 if (.not. encontrado) then
+                    print *, '===================================================='
                     print *, 'Error: El equipo no existe en el inventario.'
+                    print *, '===================================================='
                 end if
+    
+                ! Registrar el movimiento
+                num_movimientos = num_movimientos + 1
+                if (.not. allocated(movimientos)) then
+                    allocate(movimientos(num_movimientos))
+                else
+                    allocate(temp_movimientos(num_movimientos))
+                    temp_movimientos(1:num_movimientos-1) = movimientos
+                    deallocate(movimientos)
+                    allocate(movimientos(num_movimientos))
+                    movimientos = temp_movimientos
+                    deallocate(temp_movimientos)
+                end if
+                movimientos(num_movimientos)%nombre = nombreEquipo
+                movimientos(num_movimientos)%cantidad = cantidad
+                movimientos(num_movimientos)%ubicacion = ubicacion
+                movimientos(num_movimientos)%tipo = 'Agregar'
             else
-                print *, 'No se encontró el segundo delimitador ";" en la línea'
+                print *, '===================================================='
+                print *, 'Error: No se encontro el segundo delimitador ";" en la línea.'
+                print *, 'Línea: ' // trim(linea)
+                print *, '===================================================='
             end if
         else
-            print *, 'No se encontró el delimitador ";" en la línea'
+            print *, '===================================================='
+            print *, 'Error: No se encontro el delimitador ";" en la línea.'
+            print *, 'Línea: ' // trim(linea)
+            print *, '===================================================='
         end if
     end subroutine procesar_agregar_stock
 
@@ -160,50 +280,7 @@ end subroutine procesar_eliminar_equipo
         end if
     end subroutine procesar_linea
 
- subroutine procesar_crear_equipo(linea, comando)
-        character(len=*), intent(in) :: linea
-        character(len=*), intent(in) :: comando
-        character(len=1024) :: nombreEquipo, cantidadStr, precioUnitarioStr, ubicacion
-        integer :: cantidad, pos1, pos2, pos3
-        real :: precioUnitario
-
-        ! Procesar la línea para extraer los valores
-        pos1 = index(linea, ';')
-        if (pos1 > 0) then
-            nombreEquipo = trim(linea(1:pos1-1))
-            pos2 = index(linea(pos1+1:), ';') + pos1
-            if (pos2 > pos1) then
-                cantidadStr = trim(linea(pos1+1:pos2-1))
-                pos3 = index(linea(pos2+1:), ';') + pos2
-                if (pos3 > pos2) then
-                    precioUnitarioStr = trim(linea(pos2+1:pos3-1))
-                    ubicacion = trim(linea(pos3+1:))
-                    read(cantidadStr, *) cantidad
-                    read(precioUnitarioStr, *) precioUnitario
-
-                    num_inventarios = num_inventarios + 1
-                    if (.not. allocated(inventarios)) then
-                        allocate(inventarios(1))
-                    else
-                        call redimensionar_inventarios(num_inventarios)
-                    end if
-                    inventarios(num_inventarios)%nombre = trim(nombreEquipo)
-                    inventarios(num_inventarios)%cantidad = cantidad
-                    inventarios(num_inventarios)%precioUnitario = precioUnitario
-                    inventarios(num_inventarios)%ubicacion = trim(ubicacion)
-
-                    print *, 'Equipo creado: ' // trim(nombreEquipo) // ', Cantidad: ' // trim(adjustl(cantidadStr)) // ', Precio Unitario: ' // trim(adjustl(trim(precioUnitarioStr))) // ', Ubicacion: ' // trim(ubicacion)
-                else
-                    print *, 'No se encontro el tercer delimitador ";" en la línea'
-                end if
-            else
-                print *, 'No se encontró el segundo delimitador ";" en la línea'
-            end if
-        else
-            print *, 'No se encontró el delimitador ";" en la línea'
-        end if
-    end subroutine procesar_crear_equipo
-
+    
     subroutine opcion1()
         character(len=1024) :: linea
         integer :: ios
@@ -295,21 +372,100 @@ end subroutine procesar_eliminar_equipo
         close(20)
     end subroutine opcion2
 
-    subroutine opcion3(inventarios, num_equipos)
+    subroutine opcion3(inventarios, num_equipos, movimientos, num_movimientos)
         implicit none
         type(inventario_t), intent(inout) :: inventarios(:)
-        integer, intent(in) :: num_equipos
-    
-        ! Llamar a la subrutina para generar el informe del inventario
-        call generar_informe_inventario(inventarios, num_equipos)
-    
+        type(movimiento_t), intent(inout) :: movimientos(:)
+        integer, intent(in) :: num_equipos, num_movimientos
+
+        ! Llamar a la subrutina para generar el informe del inventario y movimientos
+        call generar_informe(inventarios, num_equipos, movimientos, num_movimientos)
+
         print *, '===================================================='
-        print *, 'Informe del inventario generado exitosamente.'
+        print *, 'Informe del inventario y movimientos generado exitosamente.'
         print *, '===================================================='
     end subroutine opcion3
 
 end module inventario_mod
+subroutine procesar_crear_equipo(linea, comando)
+    use inventario_mod
+    implicit none
+    character(len=*), intent(in) :: linea
+    character(len=*), intent(in) :: comando
+    character(len=1024) :: nombreEquipo, cantidadStr, precioUnitarioStr, ubicacion
+    integer :: cantidad, pos1, pos2, pos3
+    real :: precioUnitario
+    type(inventario_t), allocatable :: temp_inventarios(:)
+    integer :: ios, i
+    character(len=256) :: filename_inventario
+    real :: valor_total
 
+    ! Procesar la línea para extraer los valores
+    pos1 = index(linea, ';')
+    if (pos1 > 0) then
+        nombreEquipo = trim(linea(1:pos1-1))
+        pos2 = index(linea(pos1+1:), ';') + pos1
+        if (pos2 > pos1) then
+            cantidadStr = trim(linea(pos1+1:pos2-1))
+            pos3 = index(linea(pos2+1:), ';') + pos2
+            if (pos3 > pos2) then
+                precioUnitarioStr = trim(linea(pos2+1:pos3-1))
+                ubicacion = trim(linea(pos3+1:))
+                read(cantidadStr, *) cantidad
+                read(precioUnitarioStr, *) precioUnitario
+
+                if (.not. allocated(inventarios)) then
+                    allocate(inventarios(1))
+                    num_inventarios = 1
+                else
+                    ! Redimensionar el arreglo para agregar un nuevo inventario
+                    num_inventarios = num_inventarios + 1
+                    allocate(temp_inventarios(num_inventarios))
+                    temp_inventarios(1:num_inventarios-1) = inventarios
+                    deallocate(inventarios)
+                    allocate(inventarios(num_inventarios))
+                    inventarios = temp_inventarios
+                    deallocate(temp_inventarios)
+                end if
+
+                inventarios(num_inventarios)%nombre = nombreEquipo
+                inventarios(num_inventarios)%cantidad = cantidad
+                inventarios(num_inventarios)%precioUnitario = precioUnitario
+                inventarios(num_inventarios)%ubicacion = ubicacion
+
+                print *, 'Equipo creado - Nombre: ' // trim(nombreEquipo) // ', Cantidad: ', cantidad, ', Precio Unitario: ', precioUnitario, ', Ubicacion: ' // trim(ubicacion)
+
+                ! Generar informe de inventario inicial
+                filename_inventario = 'informe_inventario.txt'
+                open(30, file=trim(filename_inventario), status='replace', action='write', iostat=ios)
+                if (ios /= 0) then
+                    print *, 'Error al abrir el archivo de informe de inventario, codigo de error:', ios
+                    return
+                end if
+
+                write(30, '(A)') '==============================='
+                write(30, '(A)') '      Informe de Inventario      '
+                write(30, '(A)') '==============================='
+                write(30, '(A)') ''
+                write(30, '(A)') 'Equipo           Cantidad   Precio Unitario   Valor Total   Ubicacion'
+                write(30, '(A)') '---------------------------------------------------------------------'
+
+                do i = 1, num_inventarios
+                    valor_total = inventarios(i)%cantidad * inventarios(i)%precioUnitario
+                    write(30, '(A20, I10, 1X, A, F10.2, 1X, A, F10.2, A20)') trim(inventarios(i)%nombre), inventarios(i)%cantidad, 'Q', inventarios(i)%precioUnitario, 'Q', valor_total, trim(inventarios(i)%ubicacion)
+                end do
+
+                close(30)
+            else
+                print *, 'No se encontró el tercer delimitador ";" en la línea'
+            end if
+        else
+            print *, 'No se encontró el segundo delimitador ";" en la línea'
+        end if
+    else
+        print *, 'No se encontró el delimitador ";" en la línea'
+    end if
+end subroutine procesar_crear_equipo
 program main
     use inventario_mod
     implicit none
@@ -332,11 +488,10 @@ program main
             case (2)
                 call opcion2()
             case (3)
-                call opcion3(inventarios, num_inventarios)
-            case (4)
+                call opcion3(inventarios, num_inventarios, movimientos, num_movimientos)
                 exit
             case default
-                print *, 'Opcion no valida. Inténtalo de nuevo.'
+                print *, 'Opcion no valida. Intentalo de nuevo.'
         end select
     end do
 end program main
