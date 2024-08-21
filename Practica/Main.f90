@@ -387,6 +387,8 @@ end subroutine procesar_eliminar_equipo
     end subroutine opcion3
 
 end module inventario_mod
+
+
 subroutine procesar_crear_equipo(linea, comando)
     use inventario_mod
     implicit none
@@ -466,6 +468,9 @@ subroutine procesar_crear_equipo(linea, comando)
         print *, 'No se encontró el delimitador ";" en la línea'
     end if
 end subroutine procesar_crear_equipo
+
+
+
 program main
     use inventario_mod
     implicit none
